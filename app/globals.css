@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import 'maplibre-gl/dist/maplibre-gl.css';
+@import 'leaflet/dist/leaflet.css';
 
 :root {
   --ink: #172b25;
@@ -111,15 +111,16 @@ h2 { font-size: clamp(28px, 3vw, 39px); letter-spacing: -.05em; line-height: 1; 
   overflow: hidden;
   position: relative;
 }
-.radar-canvas { inset: 0; position: absolute; }
-.radar-map .maplibregl-map { font-family: inherit; }
-.radar-map .maplibregl-canvas:focus-visible { outline: 3px solid #78aeea; outline-offset: -3px; }
-.radar-map .maplibregl-ctrl-top-right { right: 8px; top: 8px; }
-.radar-map .maplibregl-ctrl-group { border-radius: 12px; box-shadow: 0 4px 16px rgb(23 43 37 / 18%); overflow: hidden; }
-.radar-map .maplibregl-ctrl-attrib { background: rgb(255 255 255 / 86%); color: var(--muted); font-size: 9px; }
-.radar-location-marker { align-items: center; display: flex; flex-direction: column; pointer-events: none; transform: translateY(14px); }
-.radar-location-marker span { background: var(--ink); border: 4px solid white; border-radius: 50%; box-shadow: 0 3px 12px rgb(0 0 0 / 24%); display: block; height: 19px; width: 19px; }
-.radar-location-marker strong { background: rgb(255 255 255 / 94%); border-radius: 999px; box-shadow: 0 3px 12px rgb(0 0 0 / 14%); color: var(--ink); font-size: 11px; margin-top: 5px; max-width: 150px; overflow: hidden; padding: 4px 8px; text-overflow: ellipsis; white-space: nowrap; }
+.radar-canvas { inset: 0; position: absolute; z-index: 1; }
+.radar-map .leaflet-container { background: #dfe9e1; font-family: inherit; height: 100%; width: 100%; }
+.radar-map .leaflet-control-zoom { border: 0; border-radius: 12px; box-shadow: 0 4px 16px rgb(23 43 37 / 18%); margin-right: 16px; margin-top: 16px; overflow: hidden; }
+.radar-map .leaflet-control-zoom a { border-color: var(--line); color: var(--ink); font-family: inherit; }
+.radar-map .leaflet-control-attribution { background: rgb(255 255 255 / 88%); color: var(--muted); font-size: 9px; }
+.radar-map .leaflet-control-attribution a { color: var(--green); }
+.radar-map .leaflet-tooltip.radar-location-label { background: rgb(255 255 255 / 94%); border: 0; border-radius: 999px; box-shadow: 0 3px 12px rgb(0 0 0 / 14%); color: var(--ink); font-size: 11px; font-weight: 750; max-width: 150px; overflow: hidden; padding: 4px 8px; text-overflow: ellipsis; white-space: nowrap; }
+.radar-map .leaflet-tooltip-bottom.radar-location-label::before { border-bottom-color: rgb(255 255 255 / 94%); }
+.radar-map .leaflet-interactive:focus { outline: none; }
+.radar-tile-layer { image-rendering: auto; }
 .radar-time { background: rgb(255 255 255 / 94%); border-radius: 999px; bottom: 16px; font-size: 12px; font-weight: 750; left: 16px; padding: 9px 12px; pointer-events: none; position: absolute; z-index: 5; }
 .radar-legend { align-items: center; background: rgb(255 255 255 / 92%); border-radius: 999px; bottom: 16px; display: flex; font-size: 10px; gap: 4px; padding: 8px 10px; pointer-events: none; position: absolute; right: 16px; z-index: 5; }.radar-legend i { background: #52a978; border-radius: 50%; height: 9px; width: 9px; }.radar-legend i:nth-of-type(2) { background: #e1cf43; }.radar-legend i:nth-of-type(3) { background: #d86942; }.radar-legend strong { font-weight: 620; }
 .radar-error { background: rgb(255 255 255 / 94%); border: 1px solid var(--line); border-radius: 12px; left: 50%; margin: 0; padding: 12px 16px; position: absolute; text-align: center; top: 50%; transform: translate(-50%, -50%); z-index: 6; }
