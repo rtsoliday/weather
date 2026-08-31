@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 type Place = {
   name: string;
@@ -167,6 +167,10 @@ export default function Home() {
   const [radarIndex, setRadarIndex] = useState(0);
   const [radarPlaying, setRadarPlaying] = useState(false);
   const [radarError, setRadarError] = useState('');
+  const [radarMapReady, setRadarMapReady] = useState(false);
+  const radarMapContainer = useRef<HTMLDivElement | null>(null);
+  const radarMap = useRef<import('maplibre-gl').Map | null>(null);
+  const radarMarker = useRef<import('maplibre-gl').Marker | null>(null);
 
   useEffect(() => {
     try {
@@ -262,11 +266,104 @@ export default function Home() {
     });
   }, [weather]);
 
-  const radarUrl = useMemo(() => {
+  const radarTileUrl = useMemo(() => {
     const frame = radarFrames[radarIndex];
     if (!frame || !radarHost) return '';
-    return radarHost + frame.path + '/512/4/' + place.latitude.toFixed(4) + '/' + place.longitude.toFixed(4) + '/2/1_1.png';
-  }, [radarFrames, radarIndex, radarHost, place.latitude, place.longitude]);
+    return radarHost + frame.path + '/256/{z}/{x}/{y}/2/1_1.png';
+  }, [radarFrames, radarIndex, radarHost]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    import('maplibre-gl')
+      .then(({ Map: MapLibreMap, Marker, NavigationControl }) => {
+        if (cancelled || !radarMapContainer.current) return;
+
+        const map = new MapLibreMap({
+          container: radarMapContainer.current,
+          style: 'https://tiles.openfreemap.org/styles/positron',
+          center: [place.longitude, place.latitude],
+          zoom: 5.6,
+          minZoom: 2,
+          maxZoom: 10,
+          renderWorldCopies: false,
+          attributionControl: true,
+        });
+
+        radarMap.current = map;
+        map.addControl(new NavigationControl({ showCompass: false, showZoom: true }), 'top-right');
+
+        const markerElement = document.createElement('div');
+        markerElement.className = 'radar-location-marker';
+        markerElement.setAttribute('aria-hidden', 'true');
+        const markerDot = document.createElement('span');
+        const markerLabel = document.createElement('strong');
+        markerLabel.textContent = place.name;
+        markerElement.append(markerDot, markerLabel);
+        radarMarker.current = new Marker({ element: markerElement, anchor: 'center' })
+          .setLngLat([place.longitude, place.latitude])
+          .addTo(map);
+
+        map.once('load', () => {
+          if (!cancelled) setRadarMapReady(true);
+        });
+      })
+      .catch(() => setRadarError('The geographic radar map is temporarily unavailable.'));
+
+    return () => {
+      cancelled = true;
+      setRadarMapReady(false);
+      radarMarker.current?.remove();
+      radarMarker.current = null;
+      radarMap.current?.remove();
+      radarMap.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = radarMap.current;
+    const marker = radarMarker.current;
+    if (!radarMapReady || !map || !marker) return;
+
+    const center: [number, number] = [place.longitude, place.latitude];
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) map.jumpTo({ center, zoom: 5.6 });
+    else map.flyTo({ center, zoom: 5.6, duration: 650, essential: false });
+
+    marker.setLngLat(center);
+    const label = marker.getElement().querySelector('strong');
+    if (label) label.textContent = place.name;
+  }, [place.latitude, place.longitude, place.name, radarMapReady]);
+
+  useEffect(() => {
+    const map = radarMap.current;
+    if (!radarMapReady || !map || !radarTileUrl) return;
+
+    const source = map.getSource('rainviewer-radar') as import('maplibre-gl').RasterTileSource | undefined;
+    if (source) {
+      source.setTiles([radarTileUrl]);
+      return;
+    }
+
+    map.addSource('rainviewer-radar', {
+      type: 'raster',
+      tiles: [radarTileUrl],
+      tileSize: 256,
+      maxzoom: 7,
+      attribution: 'Radar © RainViewer',
+    });
+
+    const firstLabelLayer = map.getStyle().layers?.find((layer) => layer.type === 'symbol')?.id;
+    map.addLayer({
+      id: 'rainviewer-radar-layer',
+      type: 'raster',
+      source: 'rainviewer-radar',
+      paint: {
+        'raster-opacity': 0.72,
+        'raster-fade-duration': 0,
+      },
+    }, firstLabelLayer);
+  }, [radarMapReady, radarTileUrl]);
 
   const choosePlace = (nextPlace: Place) => {
     setPlace(nextPlace);
@@ -468,14 +565,12 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="radar-map">
-            <div className="map-grid" aria-hidden="true" />
-            <div className="range-ring" aria-hidden="true" />
-            {radarUrl && !radarError && (
-              <img className="radar-image" src={radarUrl} alt="" onError={() => setRadarError('This radar frame is temporarily unavailable.')} />
-            )}
-            <span className="compass" aria-hidden="true">N</span>
-            <span className="city-marker"><span />{place.name}</span>
+          <div
+            className="radar-map"
+            role="region"
+            aria-label={'Interactive recent radar map centered on ' + place.label}
+          >
+            <div className="radar-canvas" ref={radarMapContainer} />
             {radarError && <p className="radar-error" role="status">{radarError}</p>}
             <div className="radar-time">{radarTime(radarFrames[radarIndex]?.time, weather?.timezone || place.timezone)}</div>
             <div className="radar-legend" aria-label="Radar intensity from light to heavy">
