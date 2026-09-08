@@ -231,9 +231,9 @@ export default function Home() {
     fetch('https://api.rainviewer.com/public/weather-maps.json', { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error('Radar service returned an error.');
-        return response.json();
+        return response.json() as Promise<{ host: string; radar?: { past?: RadarFrame[] } }>;
       })
-      .then((data: { host: string; radar?: { past?: RadarFrame[] } }) => {
+      .then((data) => {
         const frames = data.radar?.past ?? [];
         setRadarHost(data.host);
         setRadarFrames(frames);
@@ -280,8 +280,7 @@ export default function Home() {
     import('leaflet')
       .then((leafletModule) => {
         if (cancelled || !radarMapContainer.current) return;
-        const moduleWithDefault = leafletModule as typeof leafletModule & { default?: typeof leafletModule };
-        const L = moduleWithDefault.default ?? leafletModule;
+        const L = leafletModule.default ?? leafletModule;
         leaflet.current = L;
 
         const map = L.map(radarMapContainer.current, {
