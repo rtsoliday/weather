@@ -160,3 +160,7 @@ h2 { font-size: clamp(28px, 3vw, 39px); letter-spacing: -.05em; line-height: 1; 
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
+
+.temperature-source { font-size: 14px; margin: 0 0 6px; }
+.forecast-temps { flex-wrap: wrap; row-gap: 4px; }
+.daily-temperature-source { flex-basis: 100%; font-size: 12px; font-weight: 400; }

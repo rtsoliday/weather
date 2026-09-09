@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { applyTemperatureGuidance, fetchTemperatureGuidance, temperatureSourceLabel, type OpenMeteoData, type WeatherData } from './temperature-guidance';
 
 type Place = {
   name: string;
@@ -8,35 +9,6 @@ type Place = {
   latitude: number;
   longitude: number;
   timezone?: string;
-};
-
-type WeatherData = {
-  timezone: string;
-  current: {
-    time: string;
-    temperature_2m: number;
-    apparent_temperature: number;
-    relative_humidity_2m: number;
-    weather_code: number;
-    wind_speed_10m: number;
-    wind_direction_10m: number;
-    is_day: number;
-  };
-  hourly: {
-    time: string[];
-    temperature_2m: number[];
-    precipitation_probability: number[];
-    weather_code: number[];
-  };
-  daily: {
-    time: string[];
-    weather_code: number[];
-    temperature_2m_max: number[];
-    temperature_2m_min: number[];
-    precipitation_probability_max: number[];
-    sunrise: string[];
-    sunset: string[];
-  };
 };
 
 type GeocodingResult = {
@@ -203,21 +175,26 @@ export default function Home() {
       wind_speed_unit: unit === 'F' ? 'mph' : 'kmh',
       timezone: 'auto',
       forecast_days: '10',
+      timeformat: 'unixtime',
     });
 
     setWeatherStatus('loading');
     setWeatherError('');
-    fetch('https://api.open-meteo.com/v1/forecast?' + params.toString(), { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error('Forecast service returned an error.');
-        return response.json() as Promise<WeatherData>;
-      })
-      .then((data) => {
-        setWeather(data);
+    Promise.all([
+      fetch('https://api.open-meteo.com/v1/forecast?' + params.toString(), { signal: controller.signal })
+        .then((response) => {
+          if (!response.ok) throw new Error('Forecast service returned an error.');
+          return response.json() as Promise<OpenMeteoData>;
+        }),
+      fetchTemperatureGuidance(place.latitude, place.longitude, controller.signal),
+    ])
+      .then(([data, guidance]) => {
+        if (controller.signal.aborted) return;
+        setWeather(applyTemperatureGuidance(data, guidance, unit));
         setWeatherStatus('ready');
       })
       .catch((error: Error) => {
-        if (error.name === 'AbortError') return;
+        if (controller.signal.aborted || error.name === 'AbortError') return;
         setWeather(null);
         setWeatherStatus('error');
         setWeatherError('We could not update the forecast right now.');
@@ -256,12 +233,13 @@ export default function Home() {
 
   const hourly = useMemo(() => {
     if (!weather) return [];
-    const start = Math.max(0, weather.hourly.time.findIndex((time) => time >= weather.current.time));
+    const start = Math.max(0, weather.timestamps.hourly.findIndex((time) => time + 3600 > weather.timestamps.current));
     return weather.hourly.time.slice(start, start + 7).map((time, offset) => {
       const index = start + offset;
       return {
         time,
         temperature: weather.hourly.temperature_2m[index],
+        source: weather.temperatureSources.hourly[index],
         rain: weather.hourly.precipitation_probability[index],
         code: weather.hourly.weather_code[index],
       };
@@ -528,8 +506,9 @@ export default function Home() {
               <span className="weather-symbol" aria-hidden="true">{current ? weatherIcon(current.weather_code, Boolean(current.is_day)) : '◌'}</span>
               <div>
                 <p className="temperature">{temp(current?.temperature_2m)}</p>
+                {weather && <p className="temperature-source">{weather.temperatureSources.current === 'nws' ? 'NWS hourly forecast' : 'Open-Meteo temperature'}</p>}
                 <p className="feels-like">
-                  {current ? describeWeather(current.weather_code) + ' · Feels like ' + temp(current.apparent_temperature) : 'Loading current conditions'}
+                  {current ? describeWeather(current.weather_code) + ' · Feels like ' + temp(current.apparent_temperature) + ' (Open-Meteo)' : 'Loading current conditions'}
                 </p>
               </div>
             </div>
@@ -547,6 +526,7 @@ export default function Home() {
                 <p>{index === 0 ? 'Now' : formatHour(hour.time)}</p>
                 <span aria-hidden="true">{weatherIcon(hour.code)}</span>
                 <strong>{temp(hour.temperature)}</strong>
+                <small>{temperatureSourceLabel(hour.source)}</small>
                 <small>{percent(hour.rain)} rain</small>
               </div>
             )) : Array.from({ length: 7 }).map((_, index) => (
@@ -613,7 +593,11 @@ export default function Home() {
             <div>
               <p className="eyebrow">Plan ahead</p>
               <h2 id="forecast-title">10-day forecast</h2>
-              <p className="section-copy">The essentials, one day at a time.</p>
+              <p className="section-copy">{weather?.temperatureSources.daily.some(source => source !== 'open-meteo')
+                ? 'NWS temperatures where available; Open-Meteo fills remaining hours and later days.'
+                : weather?.temperatureSources.nwsUnavailable
+                  ? 'NWS is temporarily unavailable. Temperatures use Open-Meteo.'
+                  : 'The essentials, one day at a time.'}</p>
             </div>
           </div>
           <div className="forecast-list">
@@ -623,7 +607,7 @@ export default function Home() {
                 <span className="forecast-icon" aria-hidden="true">{weatherIcon(weather.daily.weather_code[index])}</span>
                 <p className="forecast-label">{describeWeather(weather.daily.weather_code[index])}</p>
                 <p className="rain-chance"><span aria-hidden="true">●</span> {percent(weather.daily.precipitation_probability_max[index])}</p>
-                <p className="forecast-temps"><strong>{temp(weather.daily.temperature_2m_max[index])}</strong><span>{temp(weather.daily.temperature_2m_min[index])}</span></p>
+                <p className="forecast-temps"><strong>{temp(weather.daily.temperature_2m_max[index])}</strong><span>{temp(weather.daily.temperature_2m_min[index])}</span><small className="daily-temperature-source">{temperatureSourceLabel(weather.temperatureSources.daily[index])}</small></p>
               </article>
             )) : Array.from({ length: 10 }).map((_, index) => (
               <article className="forecast-row forecast-placeholder" key={index} aria-hidden="true">
@@ -635,7 +619,7 @@ export default function Home() {
 
         <footer className="site-footer">
           <p><strong>Clear Weather</strong> keeps the forecast simple: no ads, no autoplay, no account.</p>
-          <p>Forecast by <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Radar by <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">RainViewer</a></p>
+          <p>U.S. temperature forecasts by <a href="https://www.weather.gov/" target="_blank" rel="noreferrer">National Weather Service</a> · Other weather and fallback forecasts by <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Radar by <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">RainViewer</a></p>
         </footer>
       </div>
     </main>
