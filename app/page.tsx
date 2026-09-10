@@ -122,6 +122,30 @@ function radarTime(timestamp: number | undefined, timezone?: string) {
 }
 
 export default function Home() {
+  useEffect(() => {
+    const maxPageAge = 15 * 60 * 1000;
+    const loadedAt = performance.timeOrigin;
+    let reloading = false;
+    const reloadIfStale = () => {
+      if (!reloading && Date.now() - loadedAt >= maxPageAge) {
+        reloading = true;
+        window.location.reload();
+      }
+    };
+    const timer = window.setTimeout(reloadIfStale, Math.max(0, maxPageAge - (Date.now() - loadedAt)));
+    // Background tabs and sleeping phones may pause timers. Also check when
+    // returning to the page, including restoration from the back/forward cache.
+    document.addEventListener('visibilitychange', reloadIfStale);
+    window.addEventListener('focus', reloadIfStale);
+    window.addEventListener('pageshow', reloadIfStale);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', reloadIfStale);
+      window.removeEventListener('focus', reloadIfStale);
+      window.removeEventListener('pageshow', reloadIfStale);
+    };
+  }, []);
+
   const [place, setPlace] = useState<Place>(DEFAULT_PLACE);
   const [unit, setUnit] = useState<Unit>('F');
   const [ready, setReady] = useState(false);
