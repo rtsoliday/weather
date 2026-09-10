@@ -471,7 +471,7 @@ export default function Home() {
               </div>
             )}
           </form>
-          <button className="geo-button" type="button" onClick={useMyLocation} disabled={locating}>
+          <button className="geo-button" aria-label={locating ? 'Locating…' : 'Use my location'} type="button" onClick={useMyLocation} disabled={locating}>
             <span aria-hidden="true">◎</span><span className="geo-label">{locating ? 'Locating…' : 'Use my location'}</span>
           </button>
           <button className="units-button" type="button" onClick={toggleUnit} aria-label={'Switch to degrees ' + (unit === 'F' ? 'Celsius' : 'Fahrenheit')}>
@@ -506,9 +506,10 @@ export default function Home() {
               <span className="weather-symbol" aria-hidden="true">{current ? weatherIcon(current.weather_code, Boolean(current.is_day)) : '◌'}</span>
               <div>
                 <p className="temperature">{temp(current?.temperature_2m)}</p>
-                {weather && <p className="temperature-source">{weather.temperatureSources.current === 'nws' ? 'NWS hourly forecast' : 'Open-Meteo temperature'}</p>}
+                {weather && <p className="temperature-source"><span className="desktop-copy">{weather.temperatureSources.current === 'nws' ? 'NWS hourly forecast' : 'Open-Meteo temperature'}</span><span className="mobile-copy">{weather.temperatureSources.current === 'nws' ? 'NWS forecast' : 'Open-Meteo'}</span></p>}
                 <p className="feels-like">
-                  {current ? describeWeather(current.weather_code) + ' · Feels like ' + temp(current.apparent_temperature) + ' (Open-Meteo)' : 'Loading current conditions'}
+                  <span className="desktop-copy">{current ? describeWeather(current.weather_code) + ' · Feels like ' + temp(current.apparent_temperature) + ' (Open-Meteo)' : 'Loading current conditions'}</span>
+                  <span className="mobile-copy" aria-label={current ? describeWeather(current.weather_code) + ', feels like ' + temp(current.apparent_temperature) + ' from Open-Meteo' : undefined}>{current ? 'Feels ' + temp(current.apparent_temperature) : 'Updating…'}</span>
                 </p>
               </div>
             </div>
@@ -522,12 +523,12 @@ export default function Home() {
 
           <div className="hourly-strip" aria-label="Next several hours">
             {hourly.length ? hourly.map((hour, index) => (
-              <div className="hour-cell" key={hour.time}>
+              <div className="hour-cell" role="group" key={hour.time} aria-label={`${index === 0 ? 'Now' : formatHour(hour.time)}: ${temp(hour.temperature)}, ${describeWeather(hour.code)}, ${percent(hour.rain)} rain, temperature from ${temperatureSourceLabel(hour.source)}`}>
                 <p>{index === 0 ? 'Now' : formatHour(hour.time)}</p>
                 <span aria-hidden="true">{weatherIcon(hour.code)}</span>
                 <strong>{temp(hour.temperature)}</strong>
-                <small>{temperatureSourceLabel(hour.source)}</small>
-                <small>{percent(hour.rain)} rain</small>
+                <small className="hour-temperature-source">{temperatureSourceLabel(hour.source)}</small>
+                <small className="hour-rain">{percent(hour.rain)}</small>
               </div>
             )) : Array.from({ length: 7 }).map((_, index) => (
               <div className="hour-cell hour-placeholder" key={index} aria-hidden="true"><p>—</p><span>◌</span><strong>—</strong><small>Updating</small></div>
@@ -593,7 +594,7 @@ export default function Home() {
             <div>
               <p className="eyebrow">Plan ahead</p>
               <h2 id="forecast-title">10-day forecast</h2>
-              <p className="section-copy">{weather?.temperatureSources.daily.some(source => source !== 'open-meteo')
+              <p className={'section-copy' + (weather?.temperatureSources.nwsUnavailable ? ' forecast-fallback-notice' : '')}>{weather?.temperatureSources.daily.some(source => source !== 'open-meteo')
                 ? 'NWS temperatures where available; Open-Meteo fills remaining hours and later days.'
                 : weather?.temperatureSources.nwsUnavailable
                   ? 'NWS is temporarily unavailable. Temperatures use Open-Meteo.'
@@ -602,12 +603,12 @@ export default function Home() {
           </div>
           <div className="forecast-list">
             {weather ? weather.daily.time.map((day, index) => (
-              <article className="forecast-row" key={day}>
+              <article className="forecast-row" key={day} aria-label={`${formatDate(day, true)}: ${describeWeather(weather.daily.weather_code[index])}, high ${temp(weather.daily.temperature_2m_max[index])}, low ${temp(weather.daily.temperature_2m_min[index])}, ${percent(weather.daily.precipitation_probability_max[index])} rain, temperatures from ${temperatureSourceLabel(weather.temperatureSources.daily[index])}`}>
                 <p className="forecast-day">{index === 0 ? 'Today' : formatDate(day)}</p>
                 <span className="forecast-icon" aria-hidden="true">{weatherIcon(weather.daily.weather_code[index])}</span>
                 <p className="forecast-label">{describeWeather(weather.daily.weather_code[index])}</p>
                 <p className="rain-chance"><span aria-hidden="true">●</span> {percent(weather.daily.precipitation_probability_max[index])}</p>
-                <p className="forecast-temps"><strong>{temp(weather.daily.temperature_2m_max[index])}</strong><span>{temp(weather.daily.temperature_2m_min[index])}</span><small className="daily-temperature-source">{temperatureSourceLabel(weather.temperatureSources.daily[index])}</small></p>
+                <p className="forecast-temps"><strong>{temp(weather.daily.temperature_2m_max[index])}</strong><span>{temp(weather.daily.temperature_2m_min[index])}</span><small className="daily-temperature-source"><span className="desktop-copy">{temperatureSourceLabel(weather.temperatureSources.daily[index])}</span><abbr className="mobile-copy" title={temperatureSourceLabel(weather.temperatureSources.daily[index])}>{weather.temperatureSources.daily[index] === 'nws' ? 'NWS' : weather.temperatureSources.daily[index] === 'mixed' ? 'Blend' : 'OM'}</abbr></small></p>
               </article>
             )) : Array.from({ length: 10 }).map((_, index) => (
               <article className="forecast-row forecast-placeholder" key={index} aria-hidden="true">
@@ -618,6 +619,7 @@ export default function Home() {
         </section>
 
         <footer className="site-footer">
+          <p className="mobile-copy mobile-attribution"><a href="https://www.weather.gov/" target="_blank" rel="noreferrer">NWS</a> · <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo (OM)</a> · <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">RainViewer</a></p>
           <p><strong>Clear Weather</strong> keeps the forecast simple: no ads, no autoplay, no account.</p>
           <p>U.S. temperature forecasts by <a href="https://www.weather.gov/" target="_blank" rel="noreferrer">National Weather Service</a> · Other weather and fallback forecasts by <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Radar by <a href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">RainViewer</a></p>
         </footer>
