@@ -132,7 +132,7 @@ export default function Home() {
         window.location.reload();
       }
     };
-    const timer = window.setTimeout(reloadIfStale, Math.max(0, maxPageAge - (Date.now() - loadedAt)));
+    const timer = window.setTimeout(reloadIfStale, Math.max(0, Math.ceil(maxPageAge - (Date.now() - loadedAt))));
     // Background tabs and sleeping phones may pause timers. Also check when
     // returning to the page, including restoration from the back/forward cache.
     document.addEventListener('visibilitychange', reloadIfStale);
