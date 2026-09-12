@@ -309,16 +309,7 @@ export default function Home() {
           fillColor: '#172b25',
           fillOpacity: 1,
           interactive: false,
-        })
-          .addTo(map)
-          .bindTooltip(place.name, {
-            permanent: true,
-            direction: 'bottom',
-            offset: [0, 9],
-            opacity: 1,
-            className: 'radar-location-label',
-          })
-          .openTooltip();
+        }).addTo(map);
 
         window.setTimeout(() => {
           if (cancelled) return;
@@ -351,8 +342,8 @@ export default function Home() {
     if (prefersReducedMotion) map.setView(center, 6, { animate: false });
     else map.flyTo(center, 6, { animate: true, duration: 0.65 });
 
-    marker.setLatLng(center).setTooltipContent(place.name);
-  }, [place.latitude, place.longitude, place.name, radarMapReady]);
+    marker.setLatLng(center);
+  }, [place.latitude, place.longitude, radarMapReady]);
 
   useEffect(() => {
     const L = leaflet.current;

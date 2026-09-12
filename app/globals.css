@@ -117,8 +117,6 @@ h2 { font-size: clamp(28px, 3vw, 39px); letter-spacing: -.05em; line-height: 1; 
 .radar-map .leaflet-control-zoom a { border-color: var(--line); color: var(--ink); font-family: inherit; }
 .radar-map .leaflet-control-attribution { background: rgb(255 255 255 / 88%); color: var(--muted); font-size: 9px; }
 .radar-map .leaflet-control-attribution a { color: var(--green); }
-.radar-map .leaflet-tooltip.radar-location-label { background: rgb(255 255 255 / 94%); border: 0; border-radius: 999px; box-shadow: 0 3px 12px rgb(0 0 0 / 14%); color: var(--ink); font-size: 11px; font-weight: 750; max-width: 150px; overflow: hidden; padding: 4px 8px; text-overflow: ellipsis; white-space: nowrap; }
-.radar-map .leaflet-tooltip-bottom.radar-location-label::before { border-bottom-color: rgb(255 255 255 / 94%); }
 .radar-map .leaflet-interactive:focus { outline: none; }
 .radar-tile-layer { image-rendering: auto; }
 .radar-time { background: rgb(255 255 255 / 94%); border-radius: 999px; bottom: 16px; font-size: 12px; font-weight: 750; left: 16px; padding: 9px 12px; pointer-events: none; position: absolute; z-index: 5; }
