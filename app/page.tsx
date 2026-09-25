@@ -92,7 +92,7 @@ function formatDate(iso?: string, full = false) {
   if (!iso) return 'Today';
   return new Intl.DateTimeFormat('en-US', full
     ? { weekday: 'long', month: 'long', day: 'numeric' }
-    : { weekday: 'short' }
+    : { weekday: 'short', month: 'short', day: 'numeric' }
   ).format(new Date(iso + 'T12:00:00'));
 }
 
@@ -257,8 +257,9 @@ export default function Home() {
 
   const hourly = useMemo(() => {
     if (!weather) return [];
-    const start = Math.max(0, weather.timestamps.hourly.findIndex((time) => time + 3600 > weather.timestamps.current));
-    return weather.hourly.time.slice(start, start + 7).map((time, offset) => {
+    const start = weather.timestamps.hourly.findIndex((time) => time > weather.timestamps.current);
+    if (start < 0) return [];
+    return weather.hourly.time.slice(start, start + 14).map((time, offset) => {
       const index = start + offset;
       return {
         time,
@@ -536,16 +537,16 @@ export default function Home() {
             </dl>
           </div>
 
-          <div className="hourly-strip" aria-label="Next several hours">
-            {hourly.length ? hourly.map((hour, index) => (
-              <div className="hour-cell" role="group" key={hour.time} aria-label={`${index === 0 ? 'Now' : formatHour(hour.time)}: ${temp(hour.temperature)}, ${describeWeather(hour.code)}, ${percent(hour.rain)} rain, temperature from ${temperatureSourceLabel(hour.source)}`}>
-                <p>{index === 0 ? 'Now' : formatHour(hour.time)}</p>
+          <div className="hourly-strip" aria-label="Next 14 hours">
+            {hourly.length ? hourly.map((hour) => (
+              <div className="hour-cell" role="group" key={hour.time} aria-label={`${formatHour(hour.time)}: ${temp(hour.temperature)}, ${describeWeather(hour.code)}, ${percent(hour.rain)} rain, temperature from ${temperatureSourceLabel(hour.source)}`}>
+                <p>{formatHour(hour.time)}</p>
                 <span aria-hidden="true">{weatherIcon(hour.code)}</span>
                 <strong>{temp(hour.temperature)}</strong>
                 <small className="hour-temperature-source">{temperatureSourceLabel(hour.source)}</small>
                 <small className="hour-rain">{percent(hour.rain)}</small>
               </div>
-            )) : Array.from({ length: 7 }).map((_, index) => (
+            )) : Array.from({ length: 14 }).map((_, index) => (
               <div className="hour-cell hour-placeholder" key={index} aria-hidden="true"><p>—</p><span>◌</span><strong>—</strong><small>Updating</small></div>
             ))}
           </div>
