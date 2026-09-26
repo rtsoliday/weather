@@ -255,3 +255,96 @@ h2 { font-size: clamp(28px, 3vw, 39px); letter-spacing: -.05em; line-height: 1; 
   .moon-phase { font-size: 11px; margin: 2px 0 1px; padding: 2px 6px; }
   .moon-phase span { font-size: 13px; }
 }
+
+.alerts-section { margin-bottom: 14px; }
+.alert-banner {
+  background: #fff4ef;
+  border: 1px solid #e8b09f;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.alert-watch { background: #fff9ee; border-color: #dfc99c; }
+.alert-summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  list-style: none;
+  min-height: 44px;
+  padding: 8px 14px;
+}
+.alert-summary::-webkit-details-marker, .forecast-row::-webkit-details-marker { display: none; }
+.alert-summary::marker, .forecast-row::marker { content: ''; }
+.alert-summary:focus-visible, .forecast-row:focus-visible { outline: 3px solid #78aeea; outline-offset: -3px; }
+.alert-summary::after { content: '⌄'; font-size: 18px; line-height: 1; }
+.alert-banner[open] .alert-summary::after { transform: rotate(180deg); }
+.alert-symbol {
+  align-items: center;
+  background: #b64732;
+  border-radius: 50%;
+  color: white;
+  display: inline-flex;
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+.alert-watch .alert-symbol { background: #9a7027; }
+.alert-summary strong { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alert-count { flex: none; font-size: 12px; font-weight: 680; white-space: nowrap; }
+.alert-source { font-size: 11px; font-weight: 750; margin-left: auto; }
+.alert-details { border-top: 1px solid rgb(23 43 37 / 12%); padding: 0 14px; }
+.alert-detail { padding: 14px 0; }
+.alert-detail + .alert-detail { border-top: 1px solid rgb(23 43 37 / 12%); }
+.alert-detail h3 { font-size: 15px; margin: 0 0 8px; }
+.alert-detail p { font-size: 13px; line-height: 1.5; margin: 0 0 8px; overflow-wrap: anywhere; white-space: pre-line; }
+.alert-detail p:last-child { margin-bottom: 0; }
+.alert-instruction { font-weight: 550; }
+
+.forecast-item { border-bottom: 1px solid var(--line); min-width: 0; }
+.forecast-item:last-child { border-bottom: 0; }
+.forecast-row { border-bottom: 0; cursor: pointer; list-style: none; text-align: left; }
+.forecast-placeholder .forecast-row { cursor: default; }
+.forecast-item[open] { background: #fbfdf9; }
+.forecast-item[open] .forecast-row { background: #f5faf3; }
+.forecast-summary { display: block; }
+.forecast-label { display: block; }
+.forecast-day::after { color: var(--green); content: '+'; display: inline-block; font-size: 15px; margin-left: 7px; }
+.forecast-item[open] .forecast-day::after { content: '−'; }
+.forecast-placeholder .forecast-day::after { content: none; }
+.forecast-details {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 12px 24px 14px 188px;
+}
+.forecast-details div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.forecast-details span { color: var(--muted); font-size: 11px; font-weight: 680; }
+.forecast-details strong { font-size: 13px; font-weight: 720; }
+.forecast-day { white-space: nowrap; }
+
+@media (max-width: 760px) {
+  .alerts-section { margin-bottom: 6px; }
+  .alert-banner { border-radius: 10px; }
+  .alert-summary { gap: 7px; min-height: 36px; padding: 5px 8px; }
+  .alert-summary strong { font-size: 13px; }
+  .alert-source { font-size: 10px; }
+  .alert-summary::after { margin-left: auto; }
+  .alert-details { padding: 0 10px; }
+  .forecast-item:nth-child(odd):not([open]) { border-right: 1px solid var(--line); }
+  .forecast-item:nth-last-child(2) { border-bottom: 0; }
+  .forecast-item[open] { border-right: 0; grid-column: 1 / -1; }
+  .forecast-row { gap: 0 4px; }
+  .forecast-row:nth-child(odd) { border-right: 0; }
+  .forecast-label, .forecast-summary:not(.has-moon-phase) { display: none; }
+  .forecast-day::after { display: none; }
+  .forecast-item .rain-chance::after { color: var(--green); content: '+'; font-size: 12px; margin-left: 5px; }
+  .forecast-item[open] .rain-chance::after { content: '−'; }
+  .forecast-placeholder .rain-chance::after { content: none; }
+  .forecast-details { gap: 6px; padding: 7px 8px 9px; }
+  .forecast-details span { font-size: 10px; line-height: 12px; }
+  .forecast-details strong { font-size: 11px; line-height: 14px; }
+}

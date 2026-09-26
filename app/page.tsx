@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { applyTemperatureGuidance, fetchTemperatureGuidance, temperatureSourceLabel, type OpenMeteoData, type WeatherData } from './temperature-guidance';
 import { moonPhasesForDays } from './moon-phases';
+import { formatLocalClock, peakRainChance } from './forecast-details';
 
 type Place = {
   name: string;
@@ -26,6 +27,15 @@ type GeocodingResult = {
 type RadarFrame = { time: number; path: string };
 
 type Unit = 'F' | 'C';
+type WeatherAlert = {
+  id: string;
+  event: string;
+  headline: string;
+  description: string;
+  instruction: string;
+  severity: string;
+  expires: string | null;
+};
 
 const DEFAULT_PLACE: Place = {
   name: 'Chicago',
@@ -154,6 +164,8 @@ export default function Home() {
   const [weatherStatus, setWeatherStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [weatherError, setWeatherError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [alertResult, setAlertResult] = useState<{ key: string; alerts: WeatherAlert[] } | null>(null);
+  const alertPlaceKey = place.latitude.toFixed(4) + ',' + place.longitude.toFixed(4);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<GeocodingResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -227,6 +239,43 @@ export default function Home() {
 
     return () => controller.abort();
   }, [place, unit, ready, refreshKey]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const controller = new AbortController();
+    let lastCheck = 0;
+    const loadAlerts = () => {
+      if (Date.now() - lastCheck < 60_000) return;
+      lastCheck = Date.now();
+      const params = new URLSearchParams({
+        latitude: String(place.latitude), longitude: String(place.longitude),
+      });
+      fetch('/api/nws/alerts?' + params.toString(), { signal: controller.signal })
+        .then((response) => {
+          if (!response.ok) throw new Error('NWS alerts unavailable');
+          return response.json() as Promise<{ alerts: WeatherAlert[] }>;
+        })
+        .then((data) => {
+          if (!controller.signal.aborted && Array.isArray(data.alerts)) {
+            setAlertResult({ key: alertPlaceKey, alerts: data.alerts });
+          }
+        })
+        .catch(() => {
+          // Keep the last known alert during a temporary service interruption.
+        });
+    };
+    loadAlerts();
+    const timer = window.setInterval(loadAlerts, 120_000);
+    const checkOnReturn = () => {
+      if (document.visibilityState === 'visible') loadAlerts();
+    };
+    document.addEventListener('visibilitychange', checkOnReturn);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', checkOnReturn);
+    };
+  }, [place.latitude, place.longitude, alertPlaceKey, ready, refreshKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -439,6 +488,8 @@ export default function Home() {
     try { window.localStorage.setItem('clear-weather-unit', nextUnit); } catch {}
   };
 
+  const activeAlerts = alertResult?.key === alertPlaceKey ? alertResult.alerts : [];
+  const primaryAlert = activeAlerts[0];
   const current = weather?.current;
   const todayRain = weather?.daily.precipitation_probability_max[0];
   const windUnit = unit === 'F' ? 'mph' : 'km/h';
@@ -509,6 +560,28 @@ export default function Home() {
           )}
           {weatherStatus === 'ready' && <span><i /> Live conditions for {place.label}</span>}
         </div>
+
+        {primaryAlert && (
+          <section className="alerts-section" aria-label="Active National Weather Service alerts">
+            <details className={'alert-banner ' + (/\bwarning$/i.test(primaryAlert.event) ? 'alert-warning' : 'alert-watch')} key={alertPlaceKey}>
+              <summary className="alert-summary">
+                <span className="alert-symbol" aria-hidden="true">!</span>
+                <strong>{primaryAlert.event}</strong>
+                {activeAlerts.length > 1 && <span className="alert-count">+{activeAlerts.length - 1} more</span>}
+                <span className="alert-source">NWS</span>
+              </summary>
+              <div className="alert-details">
+                {activeAlerts.map((alert) => (
+                  <article className="alert-detail" key={alert.id}>
+                    <h3>{alert.headline}</h3>
+                    {alert.description && <p>{alert.description}</p>}
+                    {alert.instruction && <p className="alert-instruction"><strong>What to do:</strong> {alert.instruction}</p>}
+                  </article>
+                ))}
+              </div>
+            </details>
+          </section>
+        )}
 
         <section className="today-card" aria-labelledby="today-title">
           <div className="today-heading">
@@ -629,19 +702,35 @@ export default function Home() {
                 timeZone: weather.timezone, hour: 'numeric', minute: '2-digit',
               }).format(moonPhase.time);
               const phaseDescription = moonPhase ? ', ' + moonPhase.name + ' at ' + phaseTime : '';
-              return <article className="forecast-row" key={day} aria-label={formatDate(day, true) + ': ' + describeWeather(weather.daily.weather_code[index]) + ', high ' + temp(weather.daily.temperature_2m_max[index]) + ', low ' + temp(weather.daily.temperature_2m_min[index]) + ', ' + percent(weather.daily.precipitation_probability_max[index]) + ' rain, temperatures from ' + temperatureSourceLabel(weather.temperatureSources.daily[index]) + phaseDescription}>
-                <p className="forecast-day">{index === 0 ? 'Today' : formatDate(day)}</p>
-                <span className="forecast-icon" aria-hidden="true">{weatherIcon(weather.daily.weather_code[index])}</span>
-                <div className={'forecast-summary' + (moonPhase ? ' has-moon-phase' : '')}>
-                  <p className="forecast-label">{describeWeather(weather.daily.weather_code[index])}</p>
-                  {moonPhase && <p className="moon-phase" title={moonPhase.name + ' at ' + phaseTime}><span aria-hidden="true">{moonPhase.symbol}</span>{moonPhase.name}</p>}
+              const rainPeak = peakRainChance(
+                day, weather.hourly.time, weather.hourly.precipitation_probability,
+                weather.timestamps.hourly, weather.timestamps.current,
+              );
+              const rainTiming = !rainPeak ? 'Unavailable'
+                : rainPeak.probability < 20 ? (index === 0 ? 'Under 20% ahead' : 'Under 20% all day')
+                  : formatHour(rainPeak.time) + ' · ' + percent(rainPeak.probability);
+              return <details className="forecast-item" key={day}>
+                <summary className="forecast-row" aria-label={formatDate(day, true) + ': ' + describeWeather(weather.daily.weather_code[index]) + ', high ' + temp(weather.daily.temperature_2m_max[index]) + ', low ' + temp(weather.daily.temperature_2m_min[index]) + ', ' + percent(weather.daily.precipitation_probability_max[index]) + ' rain, temperatures from ' + temperatureSourceLabel(weather.temperatureSources.daily[index]) + phaseDescription + '. Daily details include sunrise, sunset, and rain timing.'}>
+                  <span className="forecast-day">{index === 0 ? 'Today' : formatDate(day)}</span>
+                  <span className="forecast-icon" aria-hidden="true">{weatherIcon(weather.daily.weather_code[index])}</span>
+                  <span className={'forecast-summary' + (moonPhase ? ' has-moon-phase' : '')}>
+                    <span className="forecast-label">{describeWeather(weather.daily.weather_code[index])}</span>
+                    {moonPhase && <span className="moon-phase" title={moonPhase.name + ' at ' + phaseTime}><span aria-hidden="true">{moonPhase.symbol}</span>{moonPhase.name}</span>}
+                  </span>
+                  <span className="rain-chance"><span aria-hidden="true">●</span> {percent(weather.daily.precipitation_probability_max[index])}</span>
+                  <span className="forecast-temps"><strong>{temp(weather.daily.temperature_2m_max[index])}</strong><span>{temp(weather.daily.temperature_2m_min[index])}</span><small className="daily-temperature-source"><span className="desktop-copy">{temperatureSourceLabel(weather.temperatureSources.daily[index])}</span><abbr className="mobile-copy" title={temperatureSourceLabel(weather.temperatureSources.daily[index])}>{weather.temperatureSources.daily[index] === 'nws' ? 'NWS' : weather.temperatureSources.daily[index] === 'mixed' ? 'Blend' : 'OM'}</abbr></small></span>
+                </summary>
+                <div className="forecast-details">
+                  <div><span>Sunrise</span><strong>{formatLocalClock(weather.daily.sunrise[index])}</strong></div>
+                  <div><span>Sunset</span><strong>{formatLocalClock(weather.daily.sunset[index])}</strong></div>
+                  <div><span>Peak rain chance</span><strong>{rainTiming}</strong></div>
                 </div>
-                <p className="rain-chance"><span aria-hidden="true">●</span> {percent(weather.daily.precipitation_probability_max[index])}</p>
-                <p className="forecast-temps"><strong>{temp(weather.daily.temperature_2m_max[index])}</strong><span>{temp(weather.daily.temperature_2m_min[index])}</span><small className="daily-temperature-source"><span className="desktop-copy">{temperatureSourceLabel(weather.temperatureSources.daily[index])}</span><abbr className="mobile-copy" title={temperatureSourceLabel(weather.temperatureSources.daily[index])}>{weather.temperatureSources.daily[index] === 'nws' ? 'NWS' : weather.temperatureSources.daily[index] === 'mixed' ? 'Blend' : 'OM'}</abbr></small></p>
-              </article>
+              </details>;
             }) : Array.from({ length: 10 }).map((_, index) => (
-              <article className="forecast-row forecast-placeholder" key={index} aria-hidden="true">
-                <p className="forecast-day">{index === 0 ? 'Today' : '—'}</p><span className="forecast-icon">◌</span><p className="forecast-label">Updating forecast</p><p className="rain-chance">—</p><p className="forecast-temps"><strong>—</strong><span>—</span></p>
+              <article className="forecast-item forecast-placeholder" key={index} aria-hidden="true">
+                <div className="forecast-row">
+                  <span className="forecast-day">{index === 0 ? 'Today' : '—'}</span><span className="forecast-icon">◌</span><span className="forecast-label">Updating forecast</span><span className="rain-chance">—</span><span className="forecast-temps"><strong>—</strong><span>—</span></span>
+                </div>
               </article>
             ))}
           </div>
