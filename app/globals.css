@@ -232,3 +232,26 @@ h2 { font-size: clamp(28px, 3vw, 39px); letter-spacing: -.05em; line-height: 1; 
   .site-footer > p { display: none; }
   .site-footer > .mobile-attribution { display: block; font-size: 12px; line-height: 16px; }
 }
+
+.forecast-summary { min-width: 0; }
+.moon-phase {
+  align-items: center;
+  background: #e8f3e6;
+  border-radius: 999px;
+  color: #285d47;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 720;
+  gap: 6px;
+  line-height: 1.2;
+  margin: 5px 0 0;
+  padding: 4px 9px;
+}
+.moon-phase span { font-size: 15px; line-height: 1; }
+
+@media (max-width: 760px) {
+  .forecast-summary { grid-column: 1 / -1; grid-row: 3; }
+  .forecast-summary:not(.has-moon-phase) { display: none; }
+  .moon-phase { font-size: 11px; margin: 2px 0 1px; padding: 2px 6px; }
+  .moon-phase span { font-size: 13px; }
+}

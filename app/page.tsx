@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { applyTemperatureGuidance, fetchTemperatureGuidance, temperatureSourceLabel, type OpenMeteoData, type WeatherData } from './temperature-guidance';
+import { moonPhasesForDays } from './moon-phases';
 
 type Place = {
   name: string;
@@ -270,6 +271,10 @@ export default function Home() {
       };
     });
   }, [weather]);
+
+  const moonPhases = useMemo(() => weather
+    ? moonPhasesForDays(weather.daily.time, weather.timezone)
+    : new Map(), [weather]);
 
   const radarTileUrl = useMemo(() => {
     const frame = radarFrames[radarIndex];
@@ -618,15 +623,23 @@ export default function Home() {
             </div>
           </div>
           <div className="forecast-list">
-            {weather ? weather.daily.time.map((day, index) => (
-              <article className="forecast-row" key={day} aria-label={`${formatDate(day, true)}: ${describeWeather(weather.daily.weather_code[index])}, high ${temp(weather.daily.temperature_2m_max[index])}, low ${temp(weather.daily.temperature_2m_min[index])}, ${percent(weather.daily.precipitation_probability_max[index])} rain, temperatures from ${temperatureSourceLabel(weather.temperatureSources.daily[index])}`}>
+            {weather ? weather.daily.time.map((day, index) => {
+              const moonPhase = moonPhases.get(day);
+              const phaseTime = moonPhase && new Intl.DateTimeFormat('en-US', {
+                timeZone: weather.timezone, hour: 'numeric', minute: '2-digit',
+              }).format(moonPhase.time);
+              const phaseDescription = moonPhase ? ', ' + moonPhase.name + ' at ' + phaseTime : '';
+              return <article className="forecast-row" key={day} aria-label={formatDate(day, true) + ': ' + describeWeather(weather.daily.weather_code[index]) + ', high ' + temp(weather.daily.temperature_2m_max[index]) + ', low ' + temp(weather.daily.temperature_2m_min[index]) + ', ' + percent(weather.daily.precipitation_probability_max[index]) + ' rain, temperatures from ' + temperatureSourceLabel(weather.temperatureSources.daily[index]) + phaseDescription}>
                 <p className="forecast-day">{index === 0 ? 'Today' : formatDate(day)}</p>
                 <span className="forecast-icon" aria-hidden="true">{weatherIcon(weather.daily.weather_code[index])}</span>
-                <p className="forecast-label">{describeWeather(weather.daily.weather_code[index])}</p>
+                <div className={'forecast-summary' + (moonPhase ? ' has-moon-phase' : '')}>
+                  <p className="forecast-label">{describeWeather(weather.daily.weather_code[index])}</p>
+                  {moonPhase && <p className="moon-phase" title={moonPhase.name + ' at ' + phaseTime}><span aria-hidden="true">{moonPhase.symbol}</span>{moonPhase.name}</p>}
+                </div>
                 <p className="rain-chance"><span aria-hidden="true">●</span> {percent(weather.daily.precipitation_probability_max[index])}</p>
                 <p className="forecast-temps"><strong>{temp(weather.daily.temperature_2m_max[index])}</strong><span>{temp(weather.daily.temperature_2m_min[index])}</span><small className="daily-temperature-source"><span className="desktop-copy">{temperatureSourceLabel(weather.temperatureSources.daily[index])}</span><abbr className="mobile-copy" title={temperatureSourceLabel(weather.temperatureSources.daily[index])}>{weather.temperatureSources.daily[index] === 'nws' ? 'NWS' : weather.temperatureSources.daily[index] === 'mixed' ? 'Blend' : 'OM'}</abbr></small></p>
               </article>
-            )) : Array.from({ length: 10 }).map((_, index) => (
+            }) : Array.from({ length: 10 }).map((_, index) => (
               <article className="forecast-row forecast-placeholder" key={index} aria-hidden="true">
                 <p className="forecast-day">{index === 0 ? 'Today' : '—'}</p><span className="forecast-icon">◌</span><p className="forecast-label">Updating forecast</p><p className="rain-chance">—</p><p className="forecast-temps"><strong>—</strong><span>—</span></p>
               </article>
