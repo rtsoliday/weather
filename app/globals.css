@@ -218,7 +218,7 @@ h2 { font-size: clamp(28px, 3vw, 39px); letter-spacing: -.05em; line-height: 1; 
   .radar-controls { font-size: 12px; line-height: 20px; gap: 8px; margin-top: 0; padding: 0; }
   .radar-controls input { min-height: 24px; margin: 0; }
   .radar-error { font-size: 14px; padding: 6px 10px; width: max-content; max-width: 90%; }
-  .forecast-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-radius: 12px; }
+  .forecast-list { display: grid; grid-auto-flow: column; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(5, auto); border-radius: 12px; }
   .forecast-row { grid-template-columns: 16px minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: 0 4px; min-height: 38px; padding: 3px 6px; }
   .forecast-row:nth-child(odd) { border-right: 1px solid var(--line); }
   .forecast-row:nth-last-child(2) { border-bottom: 0; }
@@ -334,9 +334,8 @@ h2 { font-size: clamp(28px, 3vw, 39px); letter-spacing: -.05em; line-height: 1; 
   .alert-source { font-size: 10px; }
   .alert-summary::after { margin-left: auto; }
   .alert-details { padding: 0 10px; }
-  .forecast-item:nth-child(odd):not([open]) { border-right: 1px solid var(--line); }
-  .forecast-item:nth-last-child(2) { border-bottom: 0; }
-  .forecast-item[open] { border-right: 0; grid-column: 1 / -1; }
+  .forecast-item:nth-child(-n + 5) { border-right: 1px solid var(--line); }
+  .forecast-item:nth-child(5) { border-bottom: 0; }
   .forecast-row { gap: 0 4px; }
   .forecast-row:nth-child(odd) { border-right: 0; }
   .forecast-label, .forecast-summary:not(.has-moon-phase) { display: none; }
@@ -344,7 +343,8 @@ h2 { font-size: clamp(28px, 3vw, 39px); letter-spacing: -.05em; line-height: 1; 
   .forecast-item .rain-chance::after { color: var(--green); content: '+'; font-size: 12px; margin-left: 5px; }
   .forecast-item[open] .rain-chance::after { content: '−'; }
   .forecast-placeholder .rain-chance::after { content: none; }
-  .forecast-details { gap: 6px; padding: 7px 8px 9px; }
+  .forecast-details { gap: 6px; grid-template-columns: minmax(0, 1fr); padding: 7px 8px 9px; }
+  .forecast-details div { align-items: baseline; flex-direction: row; justify-content: space-between; gap: 6px; }
   .forecast-details span { font-size: 10px; line-height: 12px; }
-  .forecast-details strong { font-size: 11px; line-height: 14px; }
+  .forecast-details strong { font-size: 11px; line-height: 14px; text-align: right; }
 }
